@@ -69,14 +69,3 @@ Runs on: http://localhost:5173
 3. Load unpacked → select extension folder  
 
 ---
-## Screenshots
-<p align="center">
-  <img src="screenshots/front.png" width="700"/>
-</p>
-<p align="center">
-  <img src="screenshots/second.png" width="700"/>
-</p>
-<p align="center">
-  <img src="screenshots/email.png" width="700"/>
-</p>
-
