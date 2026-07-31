@@ -1,49 +1,35 @@
 console.log("Email Writer Extension - Content Script Loaded");
 
+const {
+    GMAIL_SELECTORS,
+    findFirstElement,
+    findFirstElementText,
+    generateEmailReply
+} = globalThis.EmailAssistant;
+
+const BUTTON_LABEL = 'AI Reply';
+const BUTTON_LOADING_LABEL = 'Generating...';
+
 function createAIButton(){
     const button = document.createElement('div');
     button.className = 'T- J-J5-Ji ao0 v7 T-I-atl L3';
     button.style.marginRight= '8px';
-    button.innerHTML = 'AI Reply';
-    button.setAttribute=('role' , 'button');
-    button.setAttribute=('data-tooltip' , 'Generate AI Reply');
+    button.innerHTML = BUTTON_LABEL;
+    button.setAttribute('role' , 'button');
+    button.setAttribute('data-tooltip' , 'Generate AI Reply');
     return button;
 }
 
 function getEmailContent(){
-    const selectors =[
-        '.h7',
-        '.a3s.aiL',
-        '.gmail_quote',
-        '[role="presentation"]'
-    ];
-    for (const selector of selectors) {
-        const content = document.querySelector(selector);
-        if (content) {
-            return content.innerText.trim();
-        }
-        return '';
-    }
+    return findFirstElementText(GMAIL_SELECTORS.emailContent);
 }
 
 function findComposeToolbar(){
-    const selectors =[
-        '.btC',
-        '.aDh',
-        '[role="toolbar"]',
-        '.gU.Up'
-    ];
-    for (const selector of selectors) {
-        const toolbar = document.querySelector(selector);
-        if (toolbar) {
-            return toolbar;
-        }
-        return null;
-    }
+    return findFirstElement(GMAIL_SELECTORS.composeToolbar);
 }
 
 function injectButton() {
-    const existingButton = document.querySelector('ai-reply-button');
+    const existingButton = document.querySelector('.ai-reply-button');
     if(existingButton) existingButton.remove();
 
     const toolbar = findComposeToolbar();
@@ -58,27 +44,14 @@ function injectButton() {
 
     button.addEventListener('click', async () => {
         try {
-            button.innerHTML = 'Generating...';
+            button.innerHTML = BUTTON_LOADING_LABEL;
             button.disabled = true ;
 
-            const emailContent = getEmailContent();
-            const response = await fetch('http://localhost:8080/api/email/generate',{
-                method:'POST',
-                headers:{
-                    'Content-Type' : 'application/json',
-                },
-                body:JSON.stringify({
-                    emailContent : emailContent ,
-                    tone: "professinal"
-                })
+            const generatedReply = await generateEmailReply({
+                emailContent: getEmailContent(),
+                tone: "professional"
             });
-            
-            if (!response.ok) {
-                throw new Error('API Request Failed');
-            }
-
-            const generatedReply = await response.text();
-            const composeBox = document.querySelector('[role="textbox"][g_editable="true"]');
+            const composeBox = findFirstElement(GMAIL_SELECTORS.composeBox);
 
             if(composeBox){
                 composeBox.focus();
@@ -90,7 +63,7 @@ function injectButton() {
             console.error(error);
             alert('failed to generate reply ');
         }finally{
-            button.innerHTML = 'AI Reply';
+            button.innerHTML = BUTTON_LABEL;
             button.disabled=false;
         }
 
@@ -99,6 +72,8 @@ function injectButton() {
     toolbar.insertBefore(button,toolbar.firstChild);
 }
 
+const composeWindowSelector = GMAIL_SELECTORS.composeWindow.join(', ');
+
 const observer = new MutationObserver((mutations) => {
   for (const mutation of mutations) {
     const addedNodes = Array.from(mutation.addedNodes);
@@ -106,8 +81,8 @@ const observer = new MutationObserver((mutations) => {
     const hasComposeElements = addedNodes.some((node) =>
       node.nodeType === Node.ELEMENT_NODE &&
       (
-        node.matches('.aDh, .btC, [role="dialog"]') ||
-        node.querySelector('.aDh, .btC, [role="dialog"]')
+        node.matches(composeWindowSelector) ||
+        node.querySelector(composeWindowSelector)
       )
     );
 

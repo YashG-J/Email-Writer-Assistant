@@ -3,7 +3,6 @@ import {
   Container,
   Typography,
   Box,
-  TextField,
   FormControl,
   InputLabel,
   Select,
@@ -12,11 +11,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import "./App.css";
-import axios from "axios";
-
-console.log(TextField);
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { generateEmailReply } from "./api";
+import EmailTextArea from "./components/EmailTextArea";
 
 function App() {
   const [emailContent, setEmailContent] = useState("");
@@ -29,18 +25,7 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const response = await axios.post(
-        `${API_URL}/api/email/generate`,
-        {
-          emailContent,
-          tone,
-        }
-      );
-      setGeneratedReply(
-        typeof response.data === "string"
-          ? response.data
-          : JSON.stringify(response.data)
-      );
+      setGeneratedReply(await generateEmailReply({ emailContent, tone }));
     } catch (error) {
       setError("Failed to generate email reply. Please try again");
       console.error(error);
@@ -56,11 +41,7 @@ function App() {
       </Typography>
 
       <Box sx={{ mx: 3 }}>
-        <TextField
-          fullWidth
-          multiline
-          rows={6}
-          variant="outlined"
+        <EmailTextArea
           label="Original Email Content"
           value={emailContent}
           onChange={(e) => setEmailContent(e.target.value)}
@@ -104,11 +85,7 @@ function App() {
             Generated Reply:
           </Typography>
 
-          <TextField
-            fullWidth
-            multiline
-            rows={6}
-            variant="outlined"
+          <EmailTextArea
             value={generatedReply || ""}
             inputProps={{ readOnly: true }}
           />
