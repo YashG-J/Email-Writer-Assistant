@@ -42,7 +42,11 @@ function App() {
           : JSON.stringify(response.data)
       );
     } catch (error) {
-      setError("Failed to generate email reply. Please try again");
+      const serverMessage = error?.response?.data?.error;
+      setError(
+        serverMessage ||
+          "Failed to generate email reply. Please try again"
+      );
       console.error(error);
     } finally {
       setLoading(false);

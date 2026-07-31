@@ -1,9 +1,14 @@
 package com.email.reply.email_ai_reply.Service;
 
 import com.email.reply.email_ai_reply.Controller.EmailRequest;
+import com.email.reply.email_ai_reply.exception.EmailGenerationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -13,7 +18,10 @@ import java.util.Map;
 @Service
 public class EmailGeneratorService {
 
+    private static final Logger log = LoggerFactory.getLogger(EmailGeneratorService.class);
+
     private final WebClient webClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${gemini.api.url}")
     private String geminiApiUrl;
@@ -26,6 +34,11 @@ public class EmailGeneratorService {
     }
 
     public String generateEmailReply(EmailRequest emailRequest){
+        if (emailRequest == null || emailRequest.getEmailContent() == null
+                || emailRequest.getEmailContent().isBlank()) {
+            throw new IllegalArgumentException("Email content must not be empty");
+        }
+
         // Build the prompt
         String prompt = buildPrompt(emailRequest);
 
@@ -39,14 +52,30 @@ public class EmailGeneratorService {
         );
 
         // Do request and get response
-        String response = webClient.post()
-                .uri(geminiApiUrl + geminiApiKey)
-                .header("Content-Type" , "application/json")
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+        String response;
+        try {
+            response = webClient.post()
+                    .uri(geminiApiUrl + geminiApiKey)
+                    .header("Content-Type" , "application/json")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (WebClientResponseException e) {
+            log.error("Gemini API returned an error status {}: {}",
+                    e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw new EmailGenerationException(
+                    "The email generation service returned an error: " + e.getStatusCode(), e);
+        } catch (Exception e) {
+            log.error("Failed to call Gemini API", e);
+            throw new EmailGenerationException(
+                    "Unable to reach the email generation service", e);
+        }
 
+        if (response == null || response.isBlank()) {
+            log.error("Gemini API returned an empty response");
+            throw new EmailGenerationException("The email generation service returned an empty response");
+        }
 
         // Extract response and Return
         return extractResponseContent(response);
@@ -55,18 +84,26 @@ public class EmailGeneratorService {
 
     private String extractResponseContent(String response) {
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode rootNode = mapper.readTree(response);
-            return rootNode.path("candidates")
-                    .get(0)
+            JsonNode rootNode = objectMapper.readTree(response);
+            JsonNode textNode = rootNode.path("candidates")
+                    .path(0)
                     .path("content")
                     .path("parts")
-                    .get(0)
-                    .path("text")
-                    .asText();
+                    .path(0)
+                    .path("text");
 
-        }catch (Exception e){
-            return "Error processing request : " + e.getMessage();
+            if (textNode.isMissingNode() || textNode.isNull()) {
+                log.error("Unexpected response structure from Gemini API: {}", response);
+                throw new EmailGenerationException(
+                        "The email generation service returned an unexpected response");
+            }
+
+            return textNode.asString();
+
+        } catch (JacksonException e) {
+            log.error("Failed to parse response from Gemini API: {}", response, e);
+            throw new EmailGenerationException(
+                    "Unable to parse the response from the email generation service", e);
         }
     }
 
