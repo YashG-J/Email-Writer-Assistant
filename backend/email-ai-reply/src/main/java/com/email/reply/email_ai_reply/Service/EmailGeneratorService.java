@@ -40,8 +40,9 @@ public class EmailGeneratorService {
 
         // Do request and get response
         String response = webClient.post()
-                .uri(geminiApiUrl + geminiApiKey)
+                .uri(geminiApiUrl)
                 .header("Content-Type" , "application/json")
+                .header("x-goog-api-key" , geminiApiKey)
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(String.class)
@@ -66,7 +67,7 @@ public class EmailGeneratorService {
                     .asText();
 
         }catch (Exception e){
-            return "Error processing request : " + e.getMessage();
+            throw new EmailGenerationException("Unable to generate an email reply", e);
         }
     }
 

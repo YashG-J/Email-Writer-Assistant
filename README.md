@@ -34,8 +34,13 @@ Run → Edit Configurations → Environment Variables
 
 Add:
 
-GEMINI_URL=https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=  
+GEMINI_URL=https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent  
 GEMINI_KEY=your_api_key  
+CORS_ALLOWED_ORIGINS=http://localhost:5173,https://mail.google.com  
+
+The API key is sent in the `x-goog-api-key` header, so `GEMINI_URL` must **not** include `?key=`.
+Copy `backend/email-ai-reply/src/main/resources/application.properties.example` to
+`application.properties` (git-ignored) to run outside IntelliJ.
 
 ---
 
