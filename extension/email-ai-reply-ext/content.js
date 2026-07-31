@@ -22,8 +22,8 @@ function getEmailContent(){
         if (content) {
             return content.innerText.trim();
         }
-        return '';
     }
+    return '';
 }
 
 function findComposeToolbar(){
@@ -38,8 +38,8 @@ function findComposeToolbar(){
         if (toolbar) {
             return toolbar;
         }
-        return null;
     }
+    return null;
 }
 
 function injectButton() {
@@ -69,12 +69,15 @@ function injectButton() {
                 },
                 body:JSON.stringify({
                     emailContent : emailContent ,
-                    tone: "professinal"
+                    tone: "professional"
                 })
             });
-            
+
             if (!response.ok) {
-                throw new Error('API Request Failed');
+                const errorBody = await response.text().catch(() => '');
+                throw new Error(
+                    `API request failed (${response.status})${errorBody ? ': ' + errorBody : ''}`
+                );
             }
 
             const generatedReply = await response.text();
@@ -84,11 +87,11 @@ function injectButton() {
                 composeBox.focus();
                 document.execCommand('insertText',false,generatedReply);
             }else{
-                console.error('Compose box was not found');
+                throw new Error('Compose box was not found');
             }
         } catch (error) {
             console.error(error);
-            alert('failed to generate reply ');
+            alert('Failed to generate reply: ' + error.message);
         }finally{
             button.innerHTML = 'AI Reply';
             button.disabled=false;
